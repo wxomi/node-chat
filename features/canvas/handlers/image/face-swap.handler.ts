@@ -1,0 +1,345 @@
+"use client";
+
+import useFlowStore from "../../stores/canvas-store";
+import useConfigStore from "../../stores/config-store";
+import { faceSwapConfigSchema } from "../../validations/image";
+import { FaceMapping } from "../../validations/shared";
+import { faceSwap, getImageDetails } from "../../services/image";
+import { type ImageDetails } from "../../lib/image";
+import { useOperationToasts } from "../../hooks/use-operation-toasts";
+import { usePollOperation } from "../../hooks/use-poll-operation";
+import { useApiCall } from "../../hooks/use-api-call";
+import { useTaskManagerStore } from "../../stores/task-manager-store";
+
+import { getConnectedAssetUrl } from "../../lib/canvas";
+import { getOrientationFromSource } from "../../lib/shared/orientation-propagation";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.magichour.ai";
+
+export async function handleFaceSwap(nodeId: string) {
+  const { showLoading, dismiss, success, error } = useOperationToasts();
+  const { poll } = usePollOperation();
+  const { executeApiCall } = useApiCall();
+  const nodes = useFlowStore.getState().nodes;
+  const node = nodes.find((n) => n.id === nodeId);
+  const taskManager = useTaskManagerStore.getState();
+
+  // Start tracking task
+  taskManager.startNodeTask({
+    nodeId,
+    nodeType: node?.type,
+    assetName: "Face Swap",
+  });
+
+  const edges = useFlowStore.getState().edges;
+  const { nodeConfigs, updateNodeConfig } = useConfigStore.getState();
+  const nodeConfig = nodeConfigs?.[nodeId];
+
+  // Update orientation from target-face-input source when generation starts
+  // Face swap uses target image orientation (target determines output orientation)
+  const sourceOrientation = getOrientationFromSource(
+    nodeId,
+    "target-face-input",
+    edges,
+    nodeConfigs
+  );
+  
+  if (sourceOrientation && sourceOrientation !== nodeConfig?.orientation) {
+    updateNodeConfig(nodeId, {
+      ...nodeConfig,
+      orientation: sourceOrientation,
+    });
+  }
+
+  const incomingEdges = edges.filter((edge) => edge.target === nodeId);
+
+  // Get source face (image)
+  const sourceEdges = incomingEdges.filter(
+    (edge) => edge.targetHandle === "source-face-input"
+  );
+
+  if (sourceEdges.length > 1) {
+    error(
+      "Face Swap only accepts one source face image. Please remove extra connections."
+    );
+    return;
+  }
+
+  let sourceFilePath = "";
+  if (sourceEdges.length > 0) {
+    const edge = sourceEdges[0];
+    const sourceNode = nodes.find((node) => node.id === edge.source);
+
+    if (!sourceNode) {
+      error("Source face node not found");
+      return;
+    }
+
+    // Get source face image using helper
+    const sourceAssetResult = getConnectedAssetUrl(sourceNode, {
+      ...edge,
+      sourceHandle: edge.sourceHandle ?? null,
+    });
+    if (!sourceAssetResult) {
+      error(
+        "Source face image has not finished loading. Please ensure the image is uploaded or generated."
+      );
+      return;
+    }
+
+    sourceFilePath = sourceAssetResult.url;
+
+    console.log("[handleFaceSwap] Retrieved source face asset", {
+      sourceNodeId: edge.source,
+      sourceNodeType: sourceNode.type,
+      assetType: sourceAssetResult.assetInfo?.type,
+      fileName: sourceAssetResult.assetInfo?.fileName,
+    });
+  } else {
+    error("Please connect a source face image");
+    return;
+  }
+
+  // Get target face (image)
+  const targetEdges = incomingEdges.filter(
+    (edge) => edge.targetHandle === "target-face-input"
+  );
+
+  if (targetEdges.length > 1) {
+    error(
+      "Face Swap only accepts one target face image. Please remove extra connections."
+    );
+    return;
+  }
+
+  let targetFilePath = "";
+  if (targetEdges.length > 0) {
+    const edge = targetEdges[0];
+    const targetNode = nodes.find((node) => node.id === edge.source);
+
+    if (!targetNode) {
+      error("Target face node not found");
+      return;
+    }
+
+    // Get target face image using helper
+    const targetAssetResult = getConnectedAssetUrl(targetNode, {
+      ...edge,
+      sourceHandle: edge.sourceHandle ?? null,
+    });
+    if (!targetAssetResult) {
+      error(
+        "Target face image has not finished loading. Please ensure the image is uploaded or generated."
+      );
+      return;
+    }
+
+    targetFilePath = targetAssetResult.url;
+
+    console.log("[handleFaceSwap] Retrieved target face asset", {
+      targetNodeId: edge.source,
+      targetNodeType: targetNode.type,
+      assetType: targetAssetResult.assetInfo?.type,
+      fileName: targetAssetResult.assetInfo?.fileName,
+    });
+  } else {
+    error("Please connect a target face image");
+    return;
+  }
+
+  const faceSwapMode = nodeConfig?.faceSwapMode || "all-faces";
+  let faceMappings: FaceMapping[] = [];
+
+  if (faceSwapMode === "individual-faces") {
+    let detectionToastId: string | number | null = null;
+
+    try {
+      detectionToastId = showLoading("Detecting faces in target image...");
+
+      const targetNode = nodes.find(
+        (node) => node.id === targetEdges[0].source
+      );
+      const targetImageId = targetNode?.data?.generatedImageId;
+
+      console.log("[handleFaceSwap] Individual faces mode detection", {
+        targetNodeId: targetEdges[0].source,
+        targetNodeType: targetNode?.type,
+        targetImageId,
+        hasUploadedAssets: !!targetNode?.data?.uploadedAssets,
+        sourceFilePath,
+        targetFilePath,
+        faceSwapMode,
+      });
+
+      if (!targetImageId) {
+        dismiss(detectionToastId);
+        error(
+          "Individual faces mode requires automatic face detection. To use this mode, the target image must be generated by Magic Hour (it needs an image ID). " +
+            "Either: (1) Use 'All faces' mode for uploaded images, or (2) Connect a generated image as the target."
+        );
+        return;
+      }
+
+      const detectionData = await poll({
+        fetchData: async () => {
+          return executeApiCall({
+            endpoint: `${API_BASE_URL}/v1/face-detection/${targetImageId}`,
+            method: "GET",
+          });
+        },
+        isComplete: (data: any) => data.status === "complete",
+        maxAttempts: 30,
+      });
+
+      dismiss(detectionToastId);
+
+      if (!detectionData.faces || detectionData.faces.length === 0) {
+        error("No faces detected in target image");
+        return;
+      }
+
+      faceMappings = detectionData.faces.map((face: { path: string }) => ({
+        original_face: face.path,
+        new_face: sourceFilePath,
+      }));
+    } catch (detectionError) {
+      if (detectionToastId) dismiss(detectionToastId);
+      error("Error detecting faces. Please try again.");
+      return;
+    }
+  }
+
+  const dataToValidate = {
+    faceSwapMode: faceSwapMode,
+    sourceFilePath: sourceFilePath,
+    targetFilePath: targetFilePath,
+    faceMappings: faceMappings,
+    assets: {
+      imageSource: nodeConfig?.assets?.imageSource || "file",
+      youtubeUrl: nodeConfig?.assets?.youtubeUrl,
+    },
+  };
+
+  const result = faceSwapConfigSchema.safeParse(dataToValidate);
+
+  if (result.success) {
+    // Use node ID as toast ID to replace previous toasts for this node
+    const nodeToastId = `node-${nodeId}`;
+    let loadingToastId: string | number | null = null;
+
+    try {
+      // Dismiss any previous toast for this node
+      dismiss(nodeToastId as any);
+
+      loadingToastId = showLoading("Swapping faces...");
+
+      const apiResult = await faceSwap(result.data);
+      dismiss(loadingToastId);
+      success("Face swap started!", { id: nodeToastId });
+
+      console.log(
+        "[handleFaceSwap] Face swap API call completed successfully",
+        {
+          generatedImageId: apiResult,
+          requestConfig: result.data,
+        }
+      );
+
+      // Store the orientation that will be used for this generation
+      // Face swap uses target image orientation (target determines output orientation)
+      const currentOrientation = sourceOrientation || nodeConfig?.orientation || "square";
+      
+      useFlowStore.getState().updateNodeData(nodeId, {
+        generatedImageId: apiResult,
+        imageDetails: undefined,
+        generatedOrientation: currentOrientation, // Store orientation used for this generation
+      });
+
+      try {
+        await poll({
+          fetchData: () => getImageDetails(apiResult),
+          isComplete: (data: any) =>
+            data.status === "complete" ||
+            data.status === "error" ||
+            data.status === "canceled",
+          onError: (data: any) => {
+            console.error("[handleFaceSwap] Polling completed with error", {
+              imageId: apiResult,
+              status: data.status,
+              error: data.error,
+            });
+            taskManager.failNodeTask(nodeId);
+            useFlowStore.getState().updateNodeData(nodeId, {
+              generatedImageId: undefined,
+              imageDetails: undefined,
+              generatedOrientation: undefined, // Clear stored orientation on error
+            });
+            error(
+              `Face swap failed: ${data.error?.message || "Unknown error"}`,
+              { id: nodeToastId }
+            );
+          },
+          onCanceled: () => {
+            console.warn("[handleFaceSwap] Polling canceled", {
+              imageId: apiResult,
+            });
+            taskManager.failNodeTask(nodeId);
+            useFlowStore.getState().updateNodeData(nodeId, {
+              generatedImageId: undefined,
+              imageDetails: undefined,
+              generatedOrientation: undefined, // Clear stored orientation on cancel
+            });
+            error("Face swap was canceled", { id: nodeToastId });
+          },
+          onComplete: (data: any) => {
+            try {
+              console.log("[handleFaceSwap] Polling completed", {
+                imageId: apiResult,
+                status: data.status,
+                error: data.error,
+              });
+              // Keep the generatedOrientation when image completes
+              const currentData = useFlowStore.getState().nodes.find((n) => n.id === nodeId)?.data;
+              useFlowStore.getState().updateNodeData(nodeId, {
+                imageDetails: data,
+                generatedOrientation: currentData?.generatedOrientation || sourceOrientation || nodeConfig?.orientation || "square",
+              });
+              success("Face swap completed!", { id: nodeToastId });
+            } catch (e) {
+              console.error("[handler] Error in onComplete", e);
+            } finally {
+              taskManager.finishNodeTask(nodeId);
+            }
+          },
+        });
+      } catch (pollError) {
+        if (loadingToastId) dismiss(loadingToastId);
+        taskManager.failNodeTask(nodeId);
+        console.error("[handleFaceSwap] Polling error", {
+          pollError,
+          imageId: apiResult,
+        });
+        error("Error while checking image status. Please refresh.", {
+          id: nodeToastId,
+        });
+      }
+    } catch (err) {
+      if (loadingToastId) dismiss(loadingToastId);
+      taskManager.failNodeTask(nodeId);
+      console.error("[handleFaceSwap] Face swap API call failed", {
+        error: err,
+        errorMessage: err instanceof Error ? err.message : String(err),
+        errorStack: err instanceof Error ? err.stack : undefined,
+        nodeId,
+        requestConfig: result.data,
+      });
+      error("Failed to swap faces. Please try again.", { id: nodeToastId });
+    }
+  } else {
+    taskManager.failNodeTask(nodeId);
+    error(
+      "Please check your configuration. All faces require source and target images."
+    );
+  }
+}
