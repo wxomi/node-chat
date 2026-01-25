@@ -466,6 +466,13 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
     try {
       switch (action.type) {
         case "node_create": {
+          // Capture the latest state (text/config) before deleting.
+          // This ensures Redo restores the node with the text that was typed.
+          const latestSnapshots = get().createNodeSnapshots(action.nodeIds);
+          if (latestSnapshots.length > 0) {
+            action.nodeSnapshots = latestSnapshots;
+          }
+
           // Delete created nodes
           action.nodeIds.forEach((nodeId) => {
             flowStore.deleteNode(nodeId);
@@ -477,17 +484,18 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
           // Restore deleted nodes
           const restoredNodeIds: string[] = [];
           action.nodeSnapshots.forEach((snapshot) => {
-            const newNodeId = flowStore.addNode(
+            const nodeId = flowStore.addNode(
               snapshot.type,
               snapshot.position,
-              snapshot.data
+              snapshot.data,
+              snapshot.id
             );
-            restoredNodeIds.push(newNodeId);
+            restoredNodeIds.push(nodeId);
 
             // Restore width/height
             if (snapshot.width !== undefined || snapshot.height !== undefined) {
               flowStore.updateNodeDimensions(
-                newNodeId,
+                nodeId,
                 snapshot.width,
                 snapshot.height
               );
@@ -497,7 +505,7 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
             if (snapshot.config) {
               useConfigStore
                 .getState()
-                .initializeNodeConfig(newNodeId, snapshot.config);
+                .initializeNodeConfig(nodeId, snapshot.config);
             }
           });
 
@@ -581,6 +589,12 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
         }
 
         case "paste": {
+          // Capture latest state before deleting
+          const latestSnapshots = get().createNodeSnapshots(action.nodeIds);
+          if (latestSnapshots.length > 0) {
+            action.nodeSnapshots = latestSnapshots;
+          }
+
           // Delete pasted nodes (which will also delete their edges)
           action.nodeIds.forEach((nodeId) => {
             flowStore.deleteNode(nodeId);
@@ -628,17 +642,18 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
           // Re-create nodes
           const restoredNodeIds: string[] = [];
           action.nodeSnapshots.forEach((snapshot) => {
-            const newNodeId = flowStore.addNode(
+            const nodeId = flowStore.addNode(
               snapshot.type,
               snapshot.position,
-              snapshot.data
+              snapshot.data,
+              snapshot.id
             );
-            restoredNodeIds.push(newNodeId);
+            restoredNodeIds.push(nodeId);
 
             // Restore width/height
             if (snapshot.width !== undefined || snapshot.height !== undefined) {
               flowStore.updateNodeDimensions(
-                newNodeId,
+                nodeId,
                 snapshot.width,
                 snapshot.height
               );
@@ -648,7 +663,7 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
             if (snapshot.config) {
               useConfigStore
                 .getState()
-                .initializeNodeConfig(newNodeId, snapshot.config);
+                .initializeNodeConfig(nodeId, snapshot.config);
             }
           });
 
@@ -755,18 +770,19 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
           const nodeIdMapping = new Map<string, string>();
 
           action.nodeSnapshots.forEach((snapshot) => {
-            const newNodeId = flowStore.addNode(
+            const nodeId = flowStore.addNode(
               snapshot.type,
               snapshot.position,
-              snapshot.data
+              snapshot.data,
+              snapshot.id
             );
-            restoredNodeIds.push(newNodeId);
-            nodeIdMapping.set(snapshot.id, newNodeId);
+            restoredNodeIds.push(nodeId);
+            nodeIdMapping.set(snapshot.id, nodeId);
 
             // Restore width/height
             if (snapshot.width !== undefined || snapshot.height !== undefined) {
               flowStore.updateNodeDimensions(
-                newNodeId,
+                nodeId,
                 snapshot.width,
                 snapshot.height
               );
@@ -776,7 +792,7 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
             if (snapshot.config) {
               useConfigStore
                 .getState()
-                .initializeNodeConfig(newNodeId, snapshot.config);
+                .initializeNodeConfig(nodeId, snapshot.config);
             }
           });
 
