@@ -48,7 +48,8 @@ export interface FlowState {
   addNode: (
     type: string,
     position: { x: number; y: number },
-    data?: any
+    data?: any,
+    existingId?: string
   ) => string;
   addNodeAfter: (
     nodeType: string,
@@ -351,9 +352,10 @@ const useFlowStore = create<FlowState>((set, get) => ({
   addNode: (
     type: string,
     position: { x: number; y: number },
-    data?: any
+    data?: any,
+    existingId?: string
   ): string => {
-    const id = nanoid();
+    const id = existingId || nanoid();
     console.log(`[canvas-store] addNode - type: ${type}, data:`, data);
 
     // Get the flow configuration for this node type

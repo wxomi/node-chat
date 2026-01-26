@@ -88,6 +88,7 @@ const CanvasContent: React.FC<CanvasContentProps> = ({ canvasId }) => {
   const pasteNodes = useClipboardStore((state) => state.pasteNodes);
   const undo = useClipboardStore((state) => state.undo);
   const redo = useClipboardStore((state) => state.redo);
+  const deleteNode = useFlowStore((state) => state.deleteNode);
 
   const setConnectionMenuOpen = useFlowStore(
     (state) => state.setConnectionMenuOpen
@@ -437,8 +438,15 @@ const CanvasContent: React.FC<CanvasContentProps> = ({ canvasId }) => {
   }, [rfInstance, hasWalkthroughNodes, isStep1Active, isStep3Active]);
 
   const onNodesDelete = useCallback((deletedNodes: Node[]) => {
-    // No-op: Purple circles handle deletion via collision detection
-  }, []);
+    // Skip during walkthrough
+    if (isWalkthroughActive) {
+      return;
+    }
+    // Delete each node
+    deletedNodes.forEach((node) => {
+      deleteNode(node.id);
+    });
+  }, [isWalkthroughActive, deleteNode]);
 
   const [isLoadingCanvas, setIsLoadingCanvas] = useState(true);
   const setReactFlowReady = useCanvasLoadingStore(
