@@ -1371,6 +1371,18 @@ const useFlowStore = create<FlowState>((set, get) => ({
       return; // No changes, skip update
     }
 
+    // If orientation is being updated in node data, sync it to config store for undo/redo
+    if (data.orientation !== undefined) {
+      const configStore = useConfigStore.getState();
+      const currentConfig = configStore.nodeConfigs[nodeId] || {};
+      if (currentConfig.orientation !== data.orientation) {
+        configStore.updateNodeConfig(nodeId, {
+          ...currentConfig,
+          orientation: data.orientation,
+        });
+      }
+    }
+
     const updatedNodes = currentNodes.map((node) =>
       node.id === nodeId ? { ...node, data: { ...node.data, ...data } } : node
     );
