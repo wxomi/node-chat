@@ -77,6 +77,12 @@ export type UndoRedoAction =
       nodeSnapshots: NodeSnapshot[];
       edgeIds: string[];
       edgeSnapshots: EdgeSnapshot[];
+    }
+  | {
+      type: "node_config_update";
+      nodeId: string;
+      prevConfig: any;
+      nextConfig: any;
     };
 
 export interface ClipboardState {
@@ -102,6 +108,7 @@ export interface ClipboardState {
   recordEdgeDelete: (edgeIds: string[]) => void;
   recordEdgeReconnect: (edgeId: string, oldEdge: Edge, newEdge: Edge) => void;
   recordPaste: (nodeIds: string[], edgeIds: string[]) => void;
+  recordNodeConfigUpdate: (nodeId: string, prevConfig: any, nextConfig: any) => void;
   // Snapshot helpers (internal, not exposed in interface but needed for implementation)
   createNodeSnapshot: (nodeId: string) => NodeSnapshot | null;
   createEdgeSnapshot: (edgeId: string) => EdgeSnapshot | null;
@@ -277,6 +284,15 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
       nodeSnapshots,
       edgeIds,
       edgeSnapshots,
+    });
+  },
+
+  recordNodeConfigUpdate: (nodeId: string, prevConfig: any, nextConfig: any) => {
+    get().recordAction({
+      type: "node_config_update",
+      nodeId,
+      prevConfig,
+      nextConfig,
     });
   },
 
@@ -464,6 +480,7 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
     const flowStore = useFlowStore.getState();
 
     set({ isUndoRedoInProgress: true });
+    console.log("log - undo", action);
 
     try {
       switch (action.type) {
@@ -613,6 +630,22 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
           action.nodeIds.forEach((nodeId) => {
             flowStore.deleteNode(nodeId);
           });
+          break;
+        }
+
+        case "node_config_update": {
+          const configAction = action as Extract<UndoRedoAction, { type: "node_config_update" }>;
+          // Restore previous config
+          useConfigStore.getState().initializeNodeConfig(configAction.nodeId, configAction.prevConfig);
+
+          // If orientation changed, sync it to node data for UI components that read from there
+          if (configAction.prevConfig.orientation !== undefined) {
+            const flowStore = useFlowStore.getState();
+            const node = flowStore.nodes.find((n) => n.id === configAction.nodeId);
+            if (node && node.data?.orientation !== configAction.prevConfig.orientation) {
+              flowStore.updateNodeData(configAction.nodeId, { orientation: configAction.prevConfig.orientation });
+            }
+          }
           break;
         }
       }
@@ -904,6 +937,22 @@ const useClipboardStore = create<ClipboardState>((set, get) => ({
               nodeIds: restoredNodeIds,
               edgeIds: restoredEdgeIds,
             };
+          }
+          break;
+        }
+
+        case "node_config_update": {
+          const configAction = action as Extract<UndoRedoAction, { type: "node_config_update" }>;
+          // Re-apply next config
+          useConfigStore.getState().initializeNodeConfig(configAction.nodeId, configAction.nextConfig);
+
+          // If orientation changed, sync it to node data for UI components that read from there
+          if (configAction.nextConfig.orientation !== undefined) {
+            const flowStore = useFlowStore.getState();
+            const node = flowStore.nodes.find((n) => n.id === configAction.nodeId);
+            if (node && node.data?.orientation !== configAction.nextConfig.orientation) {
+              flowStore.updateNodeData(configAction.nodeId, { orientation: configAction.nextConfig.orientation });
+            }
           }
           break;
         }
