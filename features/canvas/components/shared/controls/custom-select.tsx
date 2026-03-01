@@ -66,7 +66,14 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             <ChevronDownIcon className="size-4 opacity-50 pointer-events-none shrink-0" />
           </div>
         </SelectTrigger>
-        <SelectContent className="z-[110]">
+        <SelectContent
+          data-settings-select-content="true"
+          className="z-[110]"
+          onPointerDownOutside={(event) => {
+            // Prevent outside dismiss clicks from reaching the canvas pane.
+            event.detail.originalEvent.stopPropagation();
+          }}
+        >
           {items.map((item) => {
             const selectItem = (
               <SelectItem key={item.value} value={item.value}>

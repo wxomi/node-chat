@@ -2,20 +2,30 @@
 
 import React, { useMemo, useCallback } from "react";
 import useFlowStore from "../../../stores/canvas-store";
+import useConfigStore from "../../../stores/config-store";
 import SettingDetailWrapper from "./setting-detail-wrapper";
 import { AnimatePresence, motion } from "motion/react";
 
 const SettingsPanel = React.memo(() => {
-  // Optimize subscription - only get selected node if it matches type
+  const selectedNodeId = useConfigStore((state) => state.selectedNodeId);
+
+  // Reconcile selection sources:
+  // - Prefer React Flow selected flag when available (undo/redo and other internal flows)
+  // - Fallback to UI store selection when React Flow temporarily reports no selection
   const selectedNode = useFlowStore(
     useCallback((state) => {
-      const selected = state.nodes.find((n) => n.selected);
+      const reactFlowSelected = state.nodes.find((n) => n.selected);
+      const uiSelected = selectedNodeId
+        ? state.nodes.find((n) => n.id === selectedNodeId)
+        : null;
+      const selected = reactFlowSelected ?? uiSelected;
+
       return selected?.type === "ai-image-upscaler-node-prototype" ||
         selected?.type === "face-swap-node-prototype" ||
         selected?.type === "video-generator-node-prototype"
         ? selected
         : null;
-    }, [])
+    }, [selectedNodeId])
   );
 
   // Memoize isOpen calculation

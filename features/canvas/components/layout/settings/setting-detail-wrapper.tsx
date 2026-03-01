@@ -32,16 +32,18 @@ const SettingDetailWrapper: React.FC<SettingDetailWrapperProps> = ({
     )
   );
 
-  // Check if node is actually selected in React Flow
-  const isNodeSelected = useFlowStore(
-    useCallback(
-      (state) => {
-        const node = state.nodes.find((n) => n.id === nodeId);
-        return node?.selected === true;
-      },
-      [nodeId]
-    )
+  const selectedNodeId = useConfigStore((state) => state.selectedNodeId);
+  const reactFlowSelectedNodeId = useFlowStore(
+    useCallback((state) => state.nodes.find((n) => n.selected)?.id ?? null, [])
   );
+  // Keep panel aligned with React Flow selection when present, and fallback to UI
+  // selection when React Flow temporarily clears selected flags (portal interactions).
+  const isNodeSelected = useMemo(() => {
+    if (reactFlowSelectedNodeId) {
+      return reactFlowSelectedNodeId === nodeId;
+    }
+    return selectedNodeId === nodeId;
+  }, [nodeId, reactFlowSelectedNodeId, selectedNodeId]);
 
   // Optimize subscription - only re-render when THIS node's panel state changes
   const isMaximizedRaw = useConfigStore(
@@ -95,6 +97,7 @@ const SettingDetailWrapper: React.FC<SettingDetailWrapperProps> = ({
       <AnimatePresence mode="popLayout" initial={false}>
         {!isMaximized && isNodeSelected && (
           <motion.div
+            data-settings-panel="true"
             key={`settings-wrapper-${nodeDisplayName}`}
             layoutId="settings-wrapper"
             initial={{ opacity: 0 }}
@@ -145,6 +148,7 @@ const SettingDetailWrapper: React.FC<SettingDetailWrapperProps> = ({
       <AnimatePresence mode="popLayout">
         {isMaximized && isNodeSelected && (
           <motion.div
+            data-settings-panel="true"
             layoutId="settings-wrapper"
             style={{
               borderRadius: "8px",

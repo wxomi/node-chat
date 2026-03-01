@@ -426,7 +426,35 @@ const CanvasContent: React.FC<CanvasContentProps> = ({ canvasId }) => {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
-  const onPaneClick = useCallback(() => {
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+
+    // Ignore pane deselection when interaction came from settings UI
+    // (including portal-based select content).
+    if (target?.closest('[data-settings-panel="true"]')) {
+      return;
+    }
+    if (target?.closest('[data-settings-select-content="true"]')) {
+      return;
+    }
+
+    const interactiveRegions = document.querySelectorAll<HTMLElement>(
+      '[data-settings-panel="true"], [data-settings-select-content="true"]'
+    );
+
+    for (const region of interactiveRegions) {
+      const rect = region.getBoundingClientRect();
+      const isWithinRegion =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+
+      if (isWithinRegion) {
+        return;
+      }
+    }
+
     setSelectedNodeId(null);
   }, [setSelectedNodeId]);
 
