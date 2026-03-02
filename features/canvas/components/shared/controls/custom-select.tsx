@@ -66,7 +66,14 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             <ChevronDownIcon className="size-4 opacity-50 pointer-events-none shrink-0" />
           </div>
         </SelectTrigger>
-        <SelectContent className="z-[110]">
+        <SelectContent
+          data-settings-select-content="true"
+          className="z-[110]"
+          onPointerDownOutside={(event) => {
+            // Prevent outside dismiss clicks from reaching the canvas pane.
+            event.detail.originalEvent.stopPropagation();
+          }}
+        >
           {items.map((item) => {
             const selectItem = (
               <SelectItem key={item.value} value={item.value}>
@@ -79,7 +86,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                 <Tooltip key={item.value} delayDuration={0}>
                   <TooltipTrigger asChild>{selectItem}</TooltipTrigger>
                   <TooltipContent
-                    className="bg-muted text-white text-caption-desktop-regular py-1 px-3 rounded-md border border-border flex items-center gap-2"
+                    className="z-[120] bg-muted text-white text-caption-desktop-regular py-1 px-3 rounded-md border border-border flex items-center gap-2"
                     side="right"
                     align="center"
                     sideOffset={16}

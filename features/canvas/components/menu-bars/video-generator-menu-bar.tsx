@@ -59,7 +59,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
       {options.map((option) => (
         <div
           key={option.id}
-          onClick={() => handleOptionClick(option.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOptionClick(option.id);
+          }}
           className={`border flex items-center justify-center gap-1 px-2.5 py-[2px] rounded-xl cursor-pointer transition-colors ${
             activeOptionId === option.id
               ? "bg-accent border-border"

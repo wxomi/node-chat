@@ -15,6 +15,10 @@ export const NODE_SETTINGS_MAPPING: Record<string, NodeSettingsConfig> = {
     name: "Face Swap",
     icon: FaceIcon,
   },
+  "video-generator-node-prototype": {
+    name: "Video Generator",
+    icon: FaceIcon,
+  },
 };
 
 export const getNodeDisplayName = (nodeType: string | undefined): string => {

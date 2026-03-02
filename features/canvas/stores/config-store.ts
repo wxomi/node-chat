@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { triggerCanvasSave } from "../lib/canvas";
 import useCanvasMetadataStore from "./canvas-metadata-store";
+import useClipboardStore from "./clipboard-store";
 
 export interface UIState {
   selectedNodeId: string | null;
@@ -108,13 +109,23 @@ const useConfigStore = create<UIState>((set, get) => ({
   },
 
   updateNodeConfig: (nodeId: string, config: Partial<any>) => {
+    const state = get();
+    const prevConfig = state.nodeConfigs[nodeId] || {};
+    const nextConfig = {
+      ...prevConfig,
+      ...config,
+    };
+
+    // Record config change for undo/redo BEFORE updating state
+    const { isUndoRedoInProgress } = useClipboardStore.getState();
+    if (!isUndoRedoInProgress) {
+      useClipboardStore.getState().recordNodeConfigUpdate(nodeId, prevConfig, nextConfig);
+    }
+
     set((state) => ({
       nodeConfigs: {
         ...state.nodeConfigs,
-        [nodeId]: {
-          ...state.nodeConfigs[nodeId],
-          ...config,
-        },
+        [nodeId]: nextConfig,
       },
     }));
 
@@ -127,7 +138,7 @@ const useConfigStore = create<UIState>((set, get) => ({
     set((state) => ({
       nodeConfigs: {
         ...state.nodeConfigs,
-        [nodeId]: defaultConfig,
+        [nodeId]: { ...defaultConfig },
       },
     }));
   },

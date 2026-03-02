@@ -135,6 +135,7 @@ const CanvasContent: React.FC<CanvasContentProps> = ({ canvasId }) => {
     nodeId: string | null;
     handleId: string | null;
     handleType: "source" | "target" | null;
+    detachedEdgeIds: string[];
   } | null>(null);
 
   // Cursor position tracking for paste (using ref to avoid re-renders)
@@ -142,10 +143,34 @@ const CanvasContent: React.FC<CanvasContentProps> = ({ canvasId }) => {
 
   const onConnectStart: OnConnectStart = useCallback(
     (event, { nodeId, handleId, handleType }) => {
+      const edgesSnapshot = useFlowStore.getState().edges;
+      let detachedEdgeIds: string[] = [];
+
+      if (nodeId && handleId) {
+        if (handleType === "source") {
+          const existingEdge = edgesSnapshot.find(
+            (edge) =>
+              edge.source === nodeId && edge.sourceHandle === handleId
+          );
+          if (existingEdge) {
+            detachedEdgeIds = [existingEdge.id];
+          }
+        } else if (handleType === "target") {
+          const existingEdge = edgesSnapshot.find(
+            (edge) =>
+              edge.target === nodeId && edge.targetHandle === handleId
+          );
+          if (existingEdge) {
+            detachedEdgeIds = [existingEdge.id];
+          }
+        }
+      }
+
       connectionStartRef.current = {
         nodeId: nodeId || null,
         handleId: handleId || null,
         handleType: handleType || null,
+        detachedEdgeIds,
       };
 
       if (handleType === "source") {
@@ -225,6 +250,35 @@ const CanvasContent: React.FC<CanvasContentProps> = ({ canvasId }) => {
       }
 
       if (connectionStartRef.current && !wasConnectionMade) {
+        const detachedEdgeIds =
+          connectionStartRef.current.detachedEdgeIds || [];
+
+        if (detachedEdgeIds.length > 0) {
+          const flowState = useFlowStore.getState();
+          const remainingEdges = flowState.edges.filter(
+            (edge) => !detachedEdgeIds.includes(edge.id)
+          );
+
+          const clipboardStore = useClipboardStore.getState();
+          if (!clipboardStore.isUndoRedoInProgress) {
+            clipboardStore.recordEdgeDelete(detachedEdgeIds);
+          }
+
+          useFlowStore.setState({ edges: remainingEdges });
+
+
+          setConnectionSourceInfo({
+            sourceNodeId: null,
+            sourceHandleId: null,
+            targetNodeId: null,
+            targetHandleId: null,
+            handleType: null,
+          });
+
+          connectionStartRef.current = null;
+          return;
+        }
+
         let clientX = 0;
         let clientY = 0;
 
@@ -372,7 +426,35 @@ const CanvasContent: React.FC<CanvasContentProps> = ({ canvasId }) => {
     event.dataTransfer.dropEffect = "move";
   }, []);
 
-  const onPaneClick = useCallback(() => {
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+
+    // Ignore pane deselection when interaction came from settings UI
+    // (including portal-based select content).
+    if (target?.closest('[data-settings-panel="true"]')) {
+      return;
+    }
+    if (target?.closest('[data-settings-select-content="true"]')) {
+      return;
+    }
+
+    const interactiveRegions = document.querySelectorAll<HTMLElement>(
+      '[data-settings-panel="true"], [data-settings-select-content="true"]'
+    );
+
+    for (const region of interactiveRegions) {
+      const rect = region.getBoundingClientRect();
+      const isWithinRegion =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+
+      if (isWithinRegion) {
+        return;
+      }
+    }
+
     setSelectedNodeId(null);
   }, [setSelectedNodeId]);
 

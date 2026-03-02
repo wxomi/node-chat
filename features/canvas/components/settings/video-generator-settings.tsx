@@ -28,6 +28,12 @@ const MODE_OPTIONS = [
   { value: "video-to-video", label: "Video to Video" },
 ];
 
+const MODE_SECTION_VARIANTS = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+};
+
 type VideoGeneratorSettingsProps = {
   nodeId: string;
 };
@@ -235,9 +241,10 @@ const VideoGeneratorSettings: React.FC<VideoGeneratorSettingsProps> = ({
         {currentMode === "text-to-video" && (
           <motion.div
             key="text-to-video"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            variants={MODE_SECTION_VARIANTS}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             transition={{ duration: 0.2 }}
           >
             {/* Prompt Textarea */}
@@ -290,9 +297,10 @@ const VideoGeneratorSettings: React.FC<VideoGeneratorSettingsProps> = ({
         {currentMode === "image-to-video" && (
           <motion.div
             key="image-to-video"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            variants={MODE_SECTION_VARIANTS}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             transition={{ duration: 0.2 }}
           >
             {/* End Seconds Slider */}
@@ -324,9 +332,10 @@ const VideoGeneratorSettings: React.FC<VideoGeneratorSettingsProps> = ({
         {currentMode === "video-to-video" && (
           <motion.div
             key="video-to-video"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            variants={MODE_SECTION_VARIANTS}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             transition={{ duration: 0.2 }}
           >
             {/* Start Seconds Slider */}
@@ -429,4 +438,3 @@ const VideoGeneratorSettings: React.FC<VideoGeneratorSettingsProps> = ({
 };
 
 export default React.memo(VideoGeneratorSettings);
-
