@@ -22,6 +22,7 @@ import {
   FaceSwapNodePrototype,
   AIVoiceGeneratorNodePrototype,
   VideoGeneratorNodePrototype,
+  LipSyncNodePrototype,
 } from "../components/nodes";
 import CustomEdge from "../components/shared/connections/custom-edge";
 
@@ -53,6 +54,7 @@ export const nodeTypes: NodeTypes = {
   "face-swap-node-prototype": FaceSwapNodePrototype,
   "ai-voice-generator-node-prototype": AIVoiceGeneratorNodePrototype,
   "video-generator-node-prototype": VideoGeneratorNodePrototype,
+  "lip-sync-node-prototype": LipSyncNodePrototype,
 };
 
 export const edgeTypes: EdgeTypes = {

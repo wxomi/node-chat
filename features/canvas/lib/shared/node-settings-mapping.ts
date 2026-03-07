@@ -1,5 +1,5 @@
 import { StaticImageData } from "next/image";
-import { DiagonalIcon, FaceIcon } from "@/constants/icons";
+import { DiagonalIcon, FaceIcon, LipSyncIcon } from "@/constants/icons";
 
 export type NodeSettingsConfig = {
   name: string;
@@ -18,6 +18,10 @@ export const NODE_SETTINGS_MAPPING: Record<string, NodeSettingsConfig> = {
   "video-generator-node-prototype": {
     name: "Video Generator",
     icon: FaceIcon,
+  },
+  "lip-sync-node-prototype": {
+    name: "Lip Sync",
+    icon: LipSyncIcon,
   },
 };
 

@@ -22,7 +22,8 @@ const SettingsPanel = React.memo(() => {
 
       return selected?.type === "ai-image-upscaler-node-prototype" ||
         selected?.type === "face-swap-node-prototype" ||
-        selected?.type === "video-generator-node-prototype"
+        selected?.type === "video-generator-node-prototype" ||
+        selected?.type === "lip-sync-node-prototype"
         ? selected
         : null;
     }, [selectedNodeId])

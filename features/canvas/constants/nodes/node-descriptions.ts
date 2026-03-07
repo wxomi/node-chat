@@ -400,4 +400,28 @@ export const NODE_DESCRIPTIONS_CONFIG: Record<string, NodeDescriptionConfig> = {
       },
     ],
   },
+  "lip-sync-node-prototype": {
+    description: "Sync lip movements to audio in videos",
+    inputs: [
+      {
+        id: "audio-input",
+        label: "Audio",
+        dataType: "audio",
+        required: true,
+      },
+      {
+        id: "video-input",
+        label: "Video",
+        dataType: "video",
+        required: true,
+      },
+    ],
+    outputs: [
+      {
+        id: "video-output",
+        label: "Video",
+        dataType: "video",
+      },
+    ],
+  },
 };

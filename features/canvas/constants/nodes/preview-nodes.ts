@@ -640,6 +640,43 @@ export const PREVIEW_NODES: PreviewNodesConstants = {
           ],
         },
       },
+      {
+        icon: LipSyncIcon,
+        title: "Sync Lips (E)",
+        nodeType: "lip-sync-node-prototype",
+        iconSize: 18,
+        flow: {
+          inputs: [
+            {
+              id: "audio-input",
+              type: "target",
+              dataType: "audio",
+              label: "Audio",
+              position: "left",
+              required: true,
+              maxConnections: 1,
+            },
+            {
+              id: "video-input",
+              type: "target",
+              dataType: "video",
+              label: "Video",
+              position: "left",
+              required: true,
+              maxConnections: 1,
+            },
+          ],
+          outputs: [
+            {
+              id: "video-output",
+              type: "source",
+              dataType: "video",
+              label: "Video",
+              position: "right",
+            },
+          ],
+        },
+      },
     ],
   },
 };

@@ -294,7 +294,7 @@ export const GHOST_NODES_CONFIG: GhostNodesConfig = {
     {
       icon: LipSyncIcon,
       title: "Sync Lips to Audio",
-      nodeType: "lip-sync-node",
+      nodeType: "lip-sync-node-prototype",
       yOffset: 200,
     },
   ],
@@ -304,6 +304,14 @@ export const GHOST_NODES_CONFIG: GhostNodesConfig = {
       title: "Generate Video",
       nodeType: "video-generator-node",
       yOffset: 300,
+    },
+  ],
+  "lip-sync-node-prototype": [
+    {
+      icon: ImageToVideoIcon,
+      title: "Generate Video",
+      nodeType: "video-generator-node-prototype",
+      yOffset: 0,
     },
   ],
 };
@@ -432,6 +440,14 @@ export const INPUT_GHOST_NODES_CONFIG: InputGhostNodesConfig = {
   ],
   "ai-voice-generator-node-prototype": [],
   "video-generator-node-prototype": [
+    {
+      icon: MyPlanIcon,
+      title: "Upload Media",
+      nodeType: "single-upload-node",
+      yOffset: -200,
+    },
+  ],
+  "lip-sync-node-prototype": [
     {
       icon: MyPlanIcon,
       title: "Upload Media",

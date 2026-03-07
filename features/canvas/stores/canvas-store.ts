@@ -431,6 +431,25 @@ const useFlowStore = create<FlowState>((set, get) => ({
       useConfigStore.getState().initializeNodeConfig(id, defaultConfig);
     }
 
+    // Initialize config for lip-sync-node-prototype
+    if (type === "lip-sync-node-prototype") {
+      const defaultConfig = {
+        name: undefined,
+        startSeconds: 0,
+        endSeconds: 15,
+        maxFpsLimit: 12,
+        orientation: "square" as const,
+        style: {
+          generationMode: "lite" as const,
+        },
+        assets: {
+          videoSource: "file" as const,
+          youtubeUrl: undefined,
+        },
+      };
+      useConfigStore.getState().initializeNodeConfig(id, defaultConfig);
+    }
+
     // Initialize config for ai-image-editor-node
     if (type === "ai-image-editor-node") {
       const defaultConfig = {

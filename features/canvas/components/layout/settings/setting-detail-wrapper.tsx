@@ -11,6 +11,7 @@ import { getNodeDisplayName, getNodeIcon } from "../../../lib/shared";
 import {
   AIImageUpscalerSettings,
   FaceSwapImageSettings,
+  LipSyncSettings,
   VideoGeneratorSettings,
 } from "../../settings";
 
@@ -87,6 +88,8 @@ const SettingDetailWrapper: React.FC<SettingDetailWrapperProps> = ({
         return <FaceSwapImageSettings nodeId={nodeId} />;
       case "video-generator-node-prototype":
         return <VideoGeneratorSettings nodeId={nodeId} />;
+      case "lip-sync-node-prototype":
+        return <LipSyncSettings nodeId={nodeId} />;
       default:
         return null;
     }
